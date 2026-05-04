@@ -1,59 +1,52 @@
-[tool.poetry]
+[project]
 name = "cartm"
 version = "0.1.0"
 description = "Topic modelling with attention-based approach"
-authors = ["Diyakov Ilya <s02210378@gse.cs.msu.ru>"]
-license = "MIT"
+authors = [{ name = "Diyakov Ilya", email = "s02210378@gse.cs.msu.ru" }]
+requires-python = ">=3.10,<4"
 readme = "README.md"
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "datasets>=4.8.5",
+    "jax",
+    "nltk>=3.9.1,<4",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.11,<3.15"
-nltk = "^3.9.1"
-scikit-learn = "^1.6.1"
-numpy = "^2.2.2"
-datasets = "^4.8.4"
-bertopic = "^0.17.4"
-sentence-transformers = "^5.4.1"
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-pandas = "^2.2.3"
-seaborn = "^0.13.2"
-
-[tool.poetry.group.test]
-optional = true
-
-[tool.poetry.group.test.dependencies]
-pytest = "^8.3.4"
-flake8 = "^7.1.1"
-pylint = "^3.3.4"
-
-[tool.poetry.group.examples]
-optional = true
-
-[tool.poetry.group.examples.dependencies]
-jupyter = "^1.1.1"
-ipykernel = "^6.29.5"
-ipywidgets = "^8.1.8"
-seaborn = "^0.13.2"
-
-[tool.poetry.group.cpu]
-optional = true
-
-[tool.poetry.group.cpu.dependencies]
-jax = "^0.10.0"
-
-[tool.poetry.group.gpu]
-optional = true
-
-[tool.poetry.group.gpu.dependencies]
-jax = { extras = ["cuda13"], version = "^0.10.0" }
-
-[tool.poetry.scripts]
+[project.scripts]
 download-nltk-data = "src.install:download_nltk_data"
 
+[dependency-groups]
+dev = [
+    "pandas>=2.2.3,<3",
+    "seaborn>=0.13.2,<0.14",
+    "ipykernel>=6.29.5,<7",
+    "scikit-learn>=1.6.1,<2",
+    "numpy>=2.2.2,<3",
+]
+test = [
+    "pytest>=8.3.4,<9",
+    "flake8>=7.1.1,<8",
+    "pylint>=3.3.4,<4",
+    "numpy>=2.2.2,<3",
+]
+examples = [
+    "seaborn>=0.13.2,<0.14",
+    "ipykernel>=6.29.5,<7",
+    "scikit-learn>=1.6.1,<2",
+    "numpy>=2.2.2,<3",
+]
+
+[tool.uv]
+default-groups = "all"
+
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.9.13,<0.10.0"]
+build-backend = "uv_build"

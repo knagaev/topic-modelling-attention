@@ -1,0 +1,172 @@
+{
+  "anchors": [
+    "ditto",
+    "deletion",
+    "grandfather",
+    "max",
+    "moments",
+    "ironic",
+    "chocolate",
+    "test",
+    "corn",
+    "borders",
+    "methodology",
+    "maine",
+    "oops",
+    "spelling",
+    "keywords",
+    "ass",
+    "notion",
+    "spell",
+    "raise",
+    "update"
+  ],
+  "parameters": {
+    "K": 20,
+    "MAX_FEATURES": 10000,
+    "MIN_DF": 10,
+    "MAX_DF": 0.85
+  },
+  "validation_context": {
+    "ditto": [
+      "does",
+      "time",
+      "just",
+      "used",
+      "years"
+    ],
+    "deletion": [
+      "god",
+      "alt",
+      "atheism",
+      "religion",
+      "say"
+    ],
+    "grandfather": [
+      "like",
+      "clock",
+      "tiger",
+      "beautiful",
+      "size"
+    ],
+    "max": [
+      "giz",
+      "bhj",
+      "bxn",
+      "qax",
+      "nrhj"
+    ],
+    "moments": [
+      "ftp",
+      "ago",
+      "dark",
+      "screw",
+      "just"
+    ],
+    "ironic": [
+      "people",
+      "don",
+      "period",
+      "knew",
+      "friends"
+    ],
+    "chocolate": [
+      "taste",
+      "like",
+      "bar",
+      "strawberry",
+      "space"
+    ],
+    "test": [
+      "message",
+      "used",
+      "want",
+      "just",
+      "really"
+    ],
+    "corn": [
+      "edu",
+      "having",
+      "seizure",
+      "gordon",
+      "cause"
+    ],
+    "borders": [
+      "israel",
+      "israeli",
+      "palestine",
+      "mandate",
+      "time"
+    ],
+    "methodology": [
+      "rational",
+      "extra",
+      "cases",
+      "problem",
+      "examples"
+    ],
+    "maine": [
+      "beat",
+      "won",
+      "post",
+      "state",
+      "finals"
+    ],
+    "oops": [
+      "meant",
+      "unfair",
+      "fair",
+      "defense",
+      "maybe"
+    ],
+    "spelling": [
+      "cup",
+      "pittsburgh",
+      "know",
+      "errors",
+      "people"
+    ],
+    "keywords": [
+      "sender",
+      "com",
+      "tek",
+      "usr",
+      "world"
+    ],
+    "ass": [
+      "people",
+      "don",
+      "probably",
+      "think",
+      "just"
+    ],
+    "notion": [
+      "kent",
+      "words",
+      "cheers",
+      "does",
+      "life"
+    ],
+    "spell": [
+      "hope",
+      "just",
+      "edu",
+      "definitely",
+      "student"
+    ],
+    "raise": [
+      "money",
+      "better",
+      "said",
+      "actually",
+      "race"
+    ],
+    "update": [
+      "server",
+      "libraries",
+      "sorry",
+      "public",
+      "directory"
+    ]
+  }
+}

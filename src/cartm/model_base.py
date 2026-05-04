@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Iterable, Callable
 
+import numpy as np
 import jax
 import jax.numpy as jnp
 
@@ -20,6 +21,7 @@ class ModelBase(ABC):
         self_aware_context: bool = False,
         regularizers: list[Regularization] | None = None,
         metrics: list[Metric] | None = None,
+        filter_mode: str = 'all'
     ):
         """
         Args:
@@ -35,6 +37,7 @@ class ModelBase(ABC):
             - Total context of a word on `i`-th index is ctx_len words to the left,\\
             `ctx_len` words to the right, and the word itself (if `self_aware_context` = True).
         """
+        self.filter_mode = filter_mode
         self.vocab_size = vocab_size
         self.ctx_len = ctx_len
         self.n_topics = n_topics
@@ -219,6 +222,7 @@ class ModelBase(ABC):
             n_w += jnp.bincount(batch, length=self.vocab_size)
         self.p_w = n_w / jnp.sum(n_w)  # (W,)
 
+        phi_hist = []
         for it in range(max_iter):
             phi_new, n_t_new = self._batched_step_wrapper(
                 batches=batches,
@@ -238,6 +242,9 @@ class ModelBase(ABC):
             self._flush_metrics(verbose=verbose)
 
             self.phi = phi_new
+            phi_hist.append(phi_new)
             self.n_t = n_t_new
             if diff_norm < tol:
                 break
+
+        np.save(self.filter_mode + '_phi_hist', np.asarray(phi_hist))

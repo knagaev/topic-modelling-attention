@@ -168,3 +168,4 @@ data/
 
 # VSCode configuration
 .vscode
+*.npy
