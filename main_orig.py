@@ -31,20 +31,19 @@ from cartm.metrics import (
 )
 from cartm.regularization import DecorrelationRegularization
 
-sns.set_theme()
+#sns.set_theme()
 
 categories = ['alt.atheism', 'talk.religion.misc',
               'comp.graphics', 'sci.space']
 
-#data = fetch_20newsgroups(data_home='./data/', subset='all').data
+data = fetch_20newsgroups(data_home='./data/', subset='all').data
 
-data = fetch_20newsgroups(data_home='./data/', subset='train',
-                                      categories=categories).data
-data = data[:1000]
+#data = fetch_20newsgroups(data_home='./data/', subset='train', categories=categories).data
+data = data[:100]
 
-filter_mode = 'all'
+filter_mode = 'filtered'
 if filter_mode == 'filtered':
-    preprocessor = CorpusLoader(min_token_len=3, max_token_len=20, min_df=5, max_df=0.5)
+    preprocessor = CorpusLoader(min_token_len=3, max_token_len=20, min_df=5, max_df=0.5, stopwords=set())
 if filter_mode == 'all':
     preprocessor = CorpusLoader(min_token_len=1, max_token_len=100, min_df=1, max_df=1.0)
 tokenized_data, document_bounds = preprocessor.fit_transform(data)
@@ -86,6 +85,8 @@ model.fit(
     verbose=2,
     seed=42,
 )
+
+np.save(filter_mode + "_phi_hist.npy", model.phi_hist)
 
 with open(filter_mode + "_phi_hist_perplexity.txt", "w") as f:
     print(perplexity.history)
