@@ -39,9 +39,9 @@ categories = ['alt.atheism', 'talk.religion.misc',
 data = fetch_20newsgroups(data_home='./data/', subset='all').data
 
 #data = fetch_20newsgroups(data_home='./data/', subset='train', categories=categories).data
-data = data[:100]
+data = data[:1000]
 
-filter_mode = 'filtered'
+filter_mode = 'all'
 if filter_mode == 'filtered':
     preprocessor = CorpusLoader(min_token_len=3, max_token_len=20, min_df=5, max_df=0.5, stopwords=set())
 if filter_mode == 'all':
@@ -53,6 +53,7 @@ loader = BatchedCorpusLoader(
     data=tokenized_data,
     doc_bounds=document_bounds,
     batch_size=10000,
+    #batch_size=100,
 )
 print(f'Number of batches: {len(loader)}')
 
@@ -76,7 +77,6 @@ model = AttentiveTopicModel(
     gamma=0.01,
     metrics=[perplexity],
     regularizers=[decorr],
-    filter_mode=filter_mode
 )
 
 model.fit(
@@ -84,9 +84,10 @@ model.fit(
     max_iter=50,
     verbose=2,
     seed=42,
+    num_batches_before_update=1
 )
 
 np.save(filter_mode + "_phi_hist.npy", model.phi_hist)
 
 with open(filter_mode + "_phi_hist_perplexity.txt", "w") as f:
-    print(perplexity.history)
+    f.write(str(perplexity.history))

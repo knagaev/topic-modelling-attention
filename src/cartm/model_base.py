@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Iterable, Callable
+import random
+import math
 
 import numpy as np
 import jax
 import jax.numpy as jnp
-
 from cartm.core import get_context_weights_1d
 from cartm.regularization import Regularization
 from cartm.metrics import Metric
@@ -21,7 +22,6 @@ class ModelBase(ABC):
         self_aware_context: bool = False,
         regularizers: list[Regularization] | None = None,
         metrics: list[Metric] | None = None,
-        filter_mode: str = 'all'
     ):
         """
         Args:
@@ -37,7 +37,6 @@ class ModelBase(ABC):
             - Total context of a word on `i`-th index is ctx_len words to the left,\\
             `ctx_len` words to the right, and the word itself (if `self_aware_context` = True).
         """
-        self.filter_mode = filter_mode
         self.phi_hist = None
         self.vocab_size = vocab_size
         self.ctx_len = ctx_len
@@ -51,6 +50,8 @@ class ModelBase(ABC):
         )
         self.phi = None
         self.n_t = None
+
+        self.phi_metric = None
 
         self._regularizations = {}
         if regularizers is not None:
@@ -185,6 +186,7 @@ class ModelBase(ABC):
         tol: float = 1e-3,
         verbose: int = 0,
         seed: int = 0,
+        metric_ratio: float = 0.25
     ):
         """
         Fit the model with the corpus of documents. Note that default model
@@ -223,16 +225,34 @@ class ModelBase(ABC):
             n_w += jnp.bincount(batch, length=self.vocab_size)
         self.p_w = n_w / jnp.sum(n_w)  # (W,)
 
+        test_len = math.ceil(len(batches) * metric_ratio)
+
+        # 2. Берем случайную выборку
+        test_ids = random.sample(range(len(batches)), test_len)
+        test_batches = [batch for i, batch in enumerate(batches) if i not in test_ids]
+        train_batches = [batch for i, batch in enumerate(batches) if i in test_ids]
+
         self.phi_hist = []
         for it in range(max_iter):
             phi_new, n_t_new = self._batched_step_wrapper(
-                batches=batches,
+                batches=train_batches,
                 ctx_weights=self.context_weights,
                 grad_reg=grad_regularization,
                 num_attn_passes=num_attn_passes,
                 lr=lr,
                 num_batches_before_update=num_batches_before_update,
             )
+            self._flush_metrics(verbose=verbose)
+
+            phi_new_metric, n_t_new_metric = self._batched_step_wrapper(
+                batches=test_batches,
+                ctx_weights=self.context_weights,
+                grad_reg=grad_regularization,
+                num_attn_passes=num_attn_passes,
+                lr=0,
+                num_batches_before_update=num_batches_before_update,
+            )
+            self._flush_metrics(verbose=verbose)
 
             diff_norm = jnp.linalg.norm(phi_new - self.phi)
             if verbose > 0:
@@ -240,7 +260,6 @@ class ModelBase(ABC):
                     f"Iteration [{it + 1}/{max_iter}], phi update diff norm: {diff_norm:.04f}"
                 )
 
-            self._flush_metrics(verbose=verbose)
 
             self.phi = phi_new
             self.phi_hist.append(phi_new)
