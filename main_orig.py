@@ -13,6 +13,7 @@ from nltk.stem import WordNetLemmatizer
 
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.utils import Bunch
 
 #import matplotlib.pyplot as plt
 #import seaborn as sns
@@ -33,8 +34,15 @@ from cartm.regularization import DecorrelationRegularization
 
 #sns.set_theme()
 
-categories = ['alt.atheism', 'talk.religion.misc',
-              'comp.graphics', 'sci.space']
+categories = [ 'rec.autos',
+ 'rec.motorcycles',
+ 'rec.sport.baseball',
+ 'rec.sport.hockey',
+ 'sci.crypt',
+ 'sci.electronics',
+ 'sci.med',
+ 'sci.space',
+]
 
 data = fetch_20newsgroups(data_home='./data/', subset='all').data
 
@@ -91,3 +99,5 @@ np.save(filter_mode + "_phi_hist.npy", model.phi_hist)
 
 with open(filter_mode + "_phi_hist_perplexity.txt", "w") as f:
     f.write(str(perplexity.history))
+
+
