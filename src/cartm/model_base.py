@@ -240,7 +240,7 @@ class ModelBase(ABC):
                 grad_reg=grad_regularization,
                 num_attn_passes=num_attn_passes,
                 lr=lr,
-                num_batches_before_update=num_batches_before_update,
+                num_batches_before_update=-1, # пока жестко фиксируем для проверки train|test
             )
             self._flush_metrics(verbose=verbose)
 
