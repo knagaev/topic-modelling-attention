@@ -34,6 +34,9 @@ from cartm.regularization import DecorrelationRegularization
 
 #sns.set_theme()
 
+from jax import config
+config.update("jax_disable_jit", True)
+
 categories = [ 'rec.autos',
  'rec.motorcycles',
  'rec.sport.baseball',
@@ -47,7 +50,7 @@ categories = [ 'rec.autos',
 data = fetch_20newsgroups(data_home='./data/', subset='all').data
 
 #data = fetch_20newsgroups(data_home='./data/', subset='train', categories=categories).data
-data = data[:1000]
+#data = data[:1000]
 
 filter_mode = 'all'
 if filter_mode == 'filtered':
@@ -89,10 +92,11 @@ model = AttentiveTopicModel(
 
 model.fit(
     loader,
-    max_iter=50,
+    max_iter=3,
     verbose=2,
     seed=42,
-    num_batches_before_update=1
+    num_batches_before_update=1,
+    metric_ratio = 0.05
 )
 
 np.save(filter_mode + "_phi_hist.npy", model.phi_hist)

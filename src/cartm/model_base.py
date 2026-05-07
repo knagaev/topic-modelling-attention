@@ -229,8 +229,8 @@ class ModelBase(ABC):
 
         # 2. Берем случайную выборку
         test_ids = random.sample(range(len(batches)), test_len)
-        test_batches = [batch for i, batch in enumerate(batches) if i not in test_ids]
-        train_batches = [batch for i, batch in enumerate(batches) if i in test_ids]
+        test_batches = [batch for i, batch in enumerate(batches) if i in test_ids]
+        train_batches = [batch for i, batch in enumerate(batches) if i not in test_ids]
 
         self.phi_hist = []
         for it in range(max_iter):
