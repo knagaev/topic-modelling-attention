@@ -1,0 +1,128 @@
+import json
+import os
+import time
+import re
+import requests
+from tqdm import tqdm
+from collections import Counter
+
+# ================= 1. КОНФИГУРАЦИЯ =================
+INPUT_FILE = "20ng_anchors_tfidf.json"
+OUTPUT_FILE = "synthetic_20ng_llm_qwen3b.json"
+
+# Настройки модели (оптимально для 6GB VRAM)
+MODEL = "qwen2.5:3b" 
+OLLAMA_URL = "http://localhost:11434/api/generate"
+TEMPERATURE = 0.3
+MAX_TOKENS = 200       # Ограничение длины вывода
+RETRY_DELAY = 2        # Пауза при ошибке сервера
+
+# Параметры генерации корпуса
+NUM_DOCS_TO_GENERATE = 100  # Для теста поставьте 100, для полного корпуса 10000+
+MIN_WORD_LEN = 3             # Фильтр коротких токенов в промпте
+
+# ================= 2. ЗАГРУЗКА ЯКОРНЫХ ДАННЫХ =================
+print(f"📂 Загрузка данных из {INPUT_FILE}...")
+with open(INPUT_FILE, "r", encoding="utf-8") as f:
+    raw_data = json.load(f)
+
+# Нормализация ключей (убираем пробелы, которые были в исходном JSON)
+anchors = [w.strip() for w in raw_data.get("anchors", [])]
+contexts = {k.strip(): v for k, v in raw_data.get("validation_context", {}).items()}
+
+# Формируем пул слов для каждой темы (Якорь + Контекст)
+# В данном случае мы будем генерировать документы, смешивая слова из разных тем, 
+# чтобы имитировать разнообразие 20NG, но с упором на найденные якоря.
+all_pool_words = list(set(anchors + [w for ctx in contexts.values() for w in ctx]))
+print(f"📝 Общий пул слов для генерации: {len(all_pool_words)} уникальных лексем")
+
+# ================= 3. ФУНКЦИЯ ГЕНЕРАЦИИ ЧЕРЕЗ OLLAMA =================
+def generate_with_ollama(prompt_words, max_retries=3):
+    """
+    Генерирует текст через Ollama API, используя предоставленный список слов.
+    Возвращает сгенерированный текст или None при неудаче.
+    """
+    # Подготовка промпта: берем только уникальные слова, сортируем для детерминизма
+    unique_words = sorted(set(w for w in prompt_words if len(w) >= MIN_WORD_LEN))[:40]
+    word_str = ", ".join(unique_words)
+    
+    system_instruction = (
+        "You are a Usenet user from the 1990s. Write a short forum post (80-150 words). "
+        f"Use these words naturally in the text: {word_str}. "
+        "Keep the tone technical or conversational. Do not use markdown."
+    )
+
+    payload = {
+        "model": MODEL,
+        "prompt": system_instruction,
+        "temperature": TEMPERATURE,
+        "num_predict": MAX_TOKENS,
+        "stream": False
+    }
+
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(OLLAMA_URL, json=payload, timeout=60)
+            resp.raise_for_status()
+            result = resp.json()
+            return result.get("response", "").strip()
+        
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️ Ошибка запроса (попытка {attempt+1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(RETRY_DELAY * (attempt + 1))
+            else:
+                return None
+
+# ================= 4. ОСНЦИКЛ ГЕНЕРАЦИИ =================
+print(f"🚀 Запуск генерации {NUM_DOCS_TO_GENERATE} документов через {MODEL}...")
+print(f"💡 Убедитесь, что Ollama запущена: ollama serve")
+
+generated_docs = []
+stats = {"success": 0, "fail": 0, "total_tokens": 0}
+
+for i in tqdm(range(NUM_DOCS_TO_GENERATE)):
+    # Эвристика: берем случайный якорь и его контекст как основу для документа
+    # Это гарантирует тематическую связность лучше, чем случайный набор слов
+    anchor = anchors[i % len(anchors)]
+    context_words = contexts.get(anchor, [])
+    
+    # Формируем входной набор слов: Якорь + 5-10 контекстных слов + немного шума из общего пула
+    doc_words = [anchor] + context_words[:5]
+    # Добавляем случайные слова из общего пула для разнообразия
+    import random
+    doc_words += random.sample(all_pool_words, min(5, len(all_pool_words)))
+    
+    text = generate_with_ollama(doc_words)
+    
+    if text:
+        generated_docs.append(text)
+        stats["success"] += 1
+        stats["total_tokens"] += len(text.split())
+    else:
+        stats["fail"] += 1
+        generated_docs.append("") # Пустой документ при ошибке
+
+# ================= 5. СОХРАНЕНИЕ И СТАТИСТИКА =================
+avg_len = stats["total_tokens"] / max(stats["success"], 1)
+
+print("\n📊 Статистика генерации:")
+print(f"   Успешно: {stats['success']}")
+print(f"   Ошибок: {stats['fail']}")
+print(f"   Средняя длина: {avg_len:.1f} слов")
+
+output_data = {
+    "documents": generated_docs,
+    "model_used": MODEL,
+    "parameters": {
+        "temperature": TEMPERATURE,
+        "max_tokens": MAX_TOKENS,
+        "input_source": INPUT_FILE
+    },
+    "stats": stats
+}
+
+with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+    json.dump(output_data, f, ensure_ascii=False, indent=2)
+
+print(f"💾 Результат сохранен в {OUTPUT_FILE}")
