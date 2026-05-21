@@ -186,7 +186,8 @@ class ModelBase(ABC):
         tol: float = 1e-3,
         verbose: int = 0,
         seed: int = 0,
-        metric_ratio: float = 0.25
+        metric_ratio: float = 0.25,
+        save_hist: bool = False
     ):
         """
         Fit the model with the corpus of documents. Note that default model
@@ -262,9 +263,97 @@ class ModelBase(ABC):
 
 
             self.phi = phi_new
-            self.phi_hist.append(phi_new)
+            if save_hist:
+                self.phi_hist.append(phi_new)
             self.n_t = n_t_new
             if diff_norm < tol:
                 break
 
+    def fit_with_test(
+        self,
+        train_batches: Iterable[tuple[jax.Array, jax.Array]],
+        test_batches: Iterable[tuple[jax.Array, jax.Array]],
+        *,
+        lr: float = 0.1,
+        num_batches_before_update: int = -1,
+        num_attn_passes: int = 1,
+        max_iter: int = 1000,
+        tol: float = 1e-3,
+        verbose: int = 0,
+        seed: int = 0,
+        save_hist: bool = False
+    ):
+        """
+        Fit the model with the corpus of documents. Note that default model
+        behavior is to accumulate statistics across all batches and then
+        update state once per corpus pass. If you want to update state every
+        n batches, see `num_batches_before_update` and `lr` parameters.
+
+        Args:
+            batches: Iterable returning tuples (data_batch, ctx_bounds_batch), where
+                data_batch is an array of shape (I, ), containing tokenized words
+                of each document and ctx_bounds_batch is an array of shape (B, )
+                containing bounds for context. Words beyond the bound are ignored
+                in the context.
+            lr: coefficient for updating phi in EMA mode:
+                phi = phi_prev * (1 - lr) + phi_new * lr
+            num_batches_before_update: if positive, batched algorithm updates phi
+                with EMA logic, phi_new is calculated from statistics accumulated on
+                num_batches_before_update batches.
+            num_attn_passes: number of E-steps on each iteration.
+            max_iter: max number of iterations.
+            tol: early stopping threshold.
+            verbose: write logs to stdout on each iteration.\n
+                0 - silent\n
+                1 - output general info about iterations\n
+                2 - output metric values after each iteration
+            seed: random seed.
+        """
+        if num_attn_passes <= 0:
+            raise ValueError("num_attn_passes has to be a positive value.")
+
+        self._init_state(seed=seed)
+        grad_regularization = self._compose_regularizations()
+
+        n_w = jnp.zeros(self.vocab_size)
+        for batch, _ in train_batches:
+            n_w += jnp.bincount(batch, length=self.vocab_size)
+        for batch, _ in test_batches:
+            n_w += jnp.bincount(batch, length=self.vocab_size)
+        self.p_w = n_w / jnp.sum(n_w)  # (W,)
+
+        self.phi_hist = []
+        for it in range(max_iter):
+            phi_new, n_t_new = self._batched_step_wrapper(
+                batches=train_batches,
+                ctx_weights=self.context_weights,
+                grad_reg=grad_regularization,
+                num_attn_passes=num_attn_passes,
+                lr=lr,
+                num_batches_before_update=-1, # пока жестко фиксируем для проверки train|test
+            )
+            self._flush_metrics(verbose=verbose)
+
+            phi_new_metric, n_t_new_metric = self._batched_step_wrapper(
+                batches=test_batches,
+                ctx_weights=self.context_weights,
+                grad_reg=grad_regularization,
+                num_attn_passes=num_attn_passes,
+                lr=0,
+                num_batches_before_update=num_batches_before_update,
+            )
+            self._flush_metrics(verbose=verbose)
+
+            diff_norm = jnp.linalg.norm(phi_new - self.phi)
+            if verbose > 0:
+                print(
+                    f"Iteration [{it + 1}/{max_iter}], phi update diff norm: {diff_norm:.04f}"
+                )
+
+            self.phi = phi_new
+            if save_hist:
+                self.phi_hist.append(phi_new)
+            self.n_t = n_t_new
+            if diff_norm < tol:
+                break
         

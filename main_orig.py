@@ -34,8 +34,8 @@ from cartm.regularization import DecorrelationRegularization
 
 #sns.set_theme()
 
-from jax import config
-config.update("jax_disable_jit", True)
+#from jax import config
+#config.update("jax_disable_jit", True)
 
 categories = [ 'rec.autos',
  'rec.motorcycles',
@@ -52,11 +52,11 @@ data = fetch_20newsgroups(data_home='./data/', subset='all').data
 #data = fetch_20newsgroups(data_home='./data/', subset='train', categories=categories).data
 #data = data[:1000]
 
-filter_mode = 'all'
-if filter_mode == 'filtered':
-    preprocessor = CorpusLoader(min_token_len=3, max_token_len=20, min_df=5, max_df=0.5, stopwords=set())
+filter_mode = 'ntopics200decor_new_filtered_'
+if filter_mode == 'ntopics200decor_new_filtered_':
+    preprocessor = CorpusLoader(min_token_len=3, max_token_len=20, min_df=5, max_df=0.5)
 if filter_mode == 'all':
-    preprocessor = CorpusLoader(min_token_len=1, max_token_len=100, min_df=1, max_df=1.0)
+    preprocessor = CorpusLoader(min_token_len=1, max_token_len=100, min_df=1, max_df=1.0, stopwords=set())
 tokenized_data, document_bounds = preprocessor.fit_transform(data)
 print(f'Total number of tokens in preprocessed corpus: {len(document_bounds)}')
 
@@ -71,7 +71,7 @@ print(f'Number of batches: {len(loader)}')
 vocab_size = len(preprocessor.vocabulary)
 print(f'vocab_size: {vocab_size}')
 
-with open(filter_mode + "_phi_hist_vocab.json", "w") as f:
+with open(filter_mode + "phi_hist_vocab.json", "w") as f:
     json.dump(preprocessor.vocabulary, f, indent=4) 
 
 #bow = build_bow(tokenized_data, document_bounds, vocab_size)
@@ -79,29 +79,29 @@ with open(filter_mode + "_phi_hist_vocab.json", "w") as f:
 #td = TopicVarianceMetric(top_k=25, tag="TD@25")
 perplexity = PerplexityMetric()
 
-decorr = DecorrelationRegularization(0.0, "wt")
+decorr = DecorrelationRegularization(0.3, "wt")
 
 model = AttentiveTopicModel(
     vocab_size=len(preprocessor.vocabulary),
     ctx_len=100,
-    n_topics=100,
+    n_topics=200,
     gamma=0.01,
-    metrics=[perplexity],
+    metrics=[], #[perplexity],
     regularizers=[decorr],
 )
 
 model.fit(
     loader,
-    max_iter=3,
+    max_iter=50,
     verbose=2,
     seed=42,
     num_batches_before_update=1,
     metric_ratio = 0.05
 )
 
-np.save(filter_mode + "_phi_hist.npy", model.phi_hist)
+np.save(filter_mode + "phi_hist.npy", model.phi_hist)
 
-with open(filter_mode + "_phi_hist_perplexity.txt", "w") as f:
+with open(filter_mode + "phi_hist_perplexity.txt", "w") as f:
     f.write(str(perplexity.history))
 
 

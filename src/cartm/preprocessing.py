@@ -3,6 +3,7 @@ import math
 from collections import Counter
 from typing import Sequence, Callable, Iterable
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy.sparse as sp
@@ -31,6 +32,95 @@ def build_bow(
 
     return bow
 
+def get_structured_data(tokenized_data, doc_bounds, targets, 
+             dataset_structure=None, test_structure=None, order_seed=-1):
+    if dataset_structure is None: dataset_structure = {}
+    if test_structure is None: test_structure = {}
+    
+    # 1. Восстанавливаем классические границы [start_0, start_1, ..., start_N]
+    starts = jnp.concatenate([jnp.array([0]), jnp.where(doc_bounds)[0]])
+    n_docs = len(starts)
+    ends = jnp.concatenate([starts[1:], jnp.array([len(tokenized_data)])])
+    
+    unique_cats = jnp.unique(targets)
+    all_train_indices = []
+    all_test_indices = []
+    train_result_structure = {}
+    test_result_structure = {}
+
+    if order_seed >= 0:
+        base_key = jax.random.PRNGKey(order_seed)
+
+    for cat in unique_cats:
+        cat_idx = jnp.where(targets == cat)[0]
+        n_available = len(cat_idx)
+        
+        # --- TEST SPLIT ---
+        n_test_req = test_structure.get(int(cat), 0)
+        n_test_take = min(n_test_req, n_available)
+        test_result_structure[int(cat)] = n_test_take
+        
+        if order_seed == -1:
+            test_idx = cat_idx[:n_test_take]
+            remaining_idx = cat_idx[n_test_take:]
+        else:
+            cat_key = jax.random.fold_in(base_key, int(cat))
+            perm = jax.random.permutation(cat_key, n_available)
+            shuffled_cat_idx = cat_idx[perm]
+            test_idx = shuffled_cat_idx[:n_test_take]
+            remaining_idx = shuffled_cat_idx[n_test_take:]
+            
+        all_test_indices.append(test_idx)
+        
+        # --- TRAIN SPLIT ---
+        n_train_req = dataset_structure.get(int(cat), len(remaining_idx))
+        n_train_avail = len(remaining_idx)
+        n_train_take = min(n_train_req, n_train_avail)
+        train_result_structure[int(cat)] = n_train_take
+        
+        train_idx = remaining_idx[:n_train_take]
+        all_train_indices.append(train_idx)
+
+    all_train_indices = jnp.concatenate(all_train_indices) if all_train_indices else jnp.array([], dtype=jnp.int32)
+    all_test_indices = jnp.concatenate(all_test_indices) if all_test_indices else jnp.array([], dtype=jnp.int32)
+
+    # Финальное перемешивание/сортировка
+    def finalize_indices(indices, seed_offset):
+        if len(indices) == 0: return indices
+        if order_seed == -1:
+            return jnp.sort(indices)
+        else:
+            # Используем положительные offset'ы, чтобы избежать OverflowError в uint32
+            key = jax.random.fold_in(base_key, seed_offset)
+            return jax.random.permutation(key, indices)
+
+    # Используем большие положительные числа как уникальные смещения
+    all_train_indices = finalize_indices(all_train_indices, 1000)
+    all_test_indices = finalize_indices(all_test_indices, 1001)
+
+    def build_arrays(indices):
+        if len(indices) == 0:
+            return jnp.array([], dtype=tokenized_data.dtype), jnp.array([], dtype=jnp.bool_)
+        
+        lengths = ends[indices] - starts[indices]
+        
+        new_tokens = jnp.concatenate([
+            tokenized_data[starts[i]:ends[i]] for i in indices
+        ])
+        
+        cumulative_pos = jnp.cumsum(lengths)
+        new_bounds_mask = jnp.zeros(len(new_tokens), dtype=jnp.bool_)
+        # Ставим True на началах всех документов, кроме самого первого (индекс 0)
+        start_positions = cumulative_pos[:-1] 
+        new_bounds_mask = new_bounds_mask.at[start_positions].set(True)
+        
+        return new_tokens, new_bounds_mask
+
+    train_tokens, train_bounds = build_arrays(all_train_indices)
+    test_tokens, test_bounds = build_arrays(all_test_indices)
+
+    return (train_tokens, train_bounds, train_result_structure), \
+           (test_tokens, test_bounds, test_result_structure)
 
 class CorpusLoader:
     def __init__(  # noqa (C901)
@@ -313,3 +403,32 @@ class BatchedCorpusLoader:
 
     def __iter__(self):
         return iter(self._batches)
+
+
+import os
+import re
+
+def clean_20ng_document(content):
+    
+    # 1. Remove Headers (The first blank line separates header and body)
+    parts = content.split('\n\n', 1)
+    if len(parts) < 2:
+        return "" # Skip if it's an empty or malformed file
+    
+    body = parts[1]
+    
+    # 2. Remove standard USENET footers
+    # Regex to truncate lines that look like standard signatures or attributions
+    body_lines = body.splitlines()
+    cleaned_lines = []
+    
+    for line in body_lines:
+        # Stop processing if we hit a signature block separator (like "--" or "---")
+        if line.strip().startswith(('--', '---')):
+            break
+        cleaned_lines.append(line)
+        
+    return '\n'.join(cleaned_lines).strip()
+
+# Example usage on a single file:
+# print(clean_20ng_document("20_newsgroup/alt.atheism/49960"))
