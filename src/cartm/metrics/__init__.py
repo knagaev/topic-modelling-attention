@@ -4,6 +4,7 @@ from cartm.metrics.coherence import NPMICoherenceMetric
 from cartm.metrics.phi_sparsity import SparsityMetric
 from cartm.metrics.topic_variance import TopicVarianceMetric
 from cartm.metrics.stratified_perplexity import StratifiedPerplexityMetric
+from cartm.metrics.topic_uniqueness import TopicUniquenessMetric
 
 __all__ = [
     "Metric",
@@ -12,4 +13,5 @@ __all__ = [
     "SparsityMetric",
     "TopicVarianceMetric",
     "StratifiedPerplexityMetric",
+    "TopicUniquenessMetric"
 ]

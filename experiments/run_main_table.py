@@ -203,13 +203,13 @@ def bertopic_words_spec(model, data, cache, top_k):
     return bertopic_topic_words(model, top_k=top_k)
 
 
-def fit_ctm_spec(data, seed):
+def fit_ctm_spec(data, seed, n_topics, embedding_model, num_epochs):
     return fit_combined_tm(
         data,
-        n_topics=args.n_topics,
+        n_topics=n_topics,
         seed=seed,
-        embedding_model_name=args.embedding_model,
-        num_epochs=args.max_iter,
+        embedding_model_name=embedding_model,
+        num_epochs=num_epochs,
     )
 
 
@@ -268,10 +268,13 @@ def build_specs(args):
         ),
         "ctm": ModelSpec(
             name="CombinedTM",
-            fit_fn=fit_ctm_spec,
+            fit_fn=partial(fit_ctm_spec,
+                        n_topics=args.n_topics,
+                        embedding_model=args.embedding_model,
+                        num_epochs=args.max_iter),
             eval_fn=evaluate_ctm_spec,
             topic_words_fn=ctm_words_spec,
-        ),
+        ),    
     }
 
 

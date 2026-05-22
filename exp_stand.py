@@ -94,6 +94,11 @@ experiments = {
         'gamma': [0.005, 0.05, 0.01, 0.1, 0.5],
         'ctx_len': [100],
     }
+    'ctx_len': {
+        'n_topics': [20],
+        'gamma': [0.01],
+        'ctx_len': [25, 50, 75],
+    }
 }
 
 exp_config = experiments[exp_mode]

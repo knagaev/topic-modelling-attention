@@ -39,14 +39,22 @@ def fit_bertopic(
         normalize_embeddings=True,
     )
 
+    # отбираем только термы, реально встречающиеся в обучающих текстах BERTopic
+    from collections import Counter
+    present = set()
+    for doc in train_prep:
+        present.update(doc.split())
+    filtered_vocab = {w: i for i, w in enumerate(
+        w for w in data.vocab if w in present)}
+
     vectorizer = CountVectorizer(
-        vocabulary=data.vocab,
+        vocabulary=filtered_vocab,
         tokenizer=str.split,
         preprocessor=None,
         token_pattern=None,
         lowercase=False,
     )
-
+    
     model = BERTopic(
         embedding_model=encoder,
         vectorizer_model=vectorizer,

@@ -15,9 +15,12 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
+    "bertopic>=0.17.4",
+    "contextualized-topic-models>=2.6.1",
     "datasets>=4.8.5",
     "jax",
     "nltk>=3.9.1,<4",
+    "sentence-transformers>=5.5.1",
 ]
 
 [project.scripts]
